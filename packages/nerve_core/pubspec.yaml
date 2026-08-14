@@ -1,0 +1,12 @@
+name: nerve_core
+description: Core plugin contracts and diagnostics models for Nerve.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.9
+
+dev_dependencies:
+  test: ^1.26.3
+

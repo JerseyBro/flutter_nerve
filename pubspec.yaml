@@ -1,0 +1,16 @@
+name: flutter_nerve_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.10.9
+
+workspace:
+  - packages/nerve_core
+  - packages/nerve_flutter
+  - packages/nerve_network_ninja
+  - packages/nerve_wen_adapter
+  - example
+
+dev_dependencies:
+  lints: ^6.0.0
+

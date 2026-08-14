@@ -1,0 +1,16 @@
+name: nerve_wen_adapter
+description: Example Wen Wallet adapter for Nerve. Not intended for public release.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.9
+
+dependencies:
+  nerve_core:
+    path: ../nerve_core
+
+dev_dependencies:
+  test: ^1.26.3
+

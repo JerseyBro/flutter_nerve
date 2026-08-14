@@ -1,0 +1,22 @@
+name: nerve_flutter
+description: Flutter overlay and in-app debug console UI for Nerve.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.9
+
+dependencies:
+  flutter:
+    sdk: flutter
+  nerve_core:
+    path: ../nerve_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+

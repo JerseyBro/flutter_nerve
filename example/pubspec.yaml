@@ -1,0 +1,26 @@
+name: nerve_example
+description: Example app for Nerve.
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.9
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.7.0
+  nerve_core:
+    path: ../packages/nerve_core
+  nerve_flutter:
+    path: ../packages/nerve_flutter
+  nerve_network_ninja:
+    path: ../packages/nerve_network_ninja
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+

@@ -1,0 +1,21 @@
+name: nerve_network_ninja
+description: Network Ninja adapter for Nerve.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.9
+
+dependencies:
+  dio: ^5.7.0
+  nerve_core:
+    path: ../nerve_core
+  network_ninja:
+    git:
+      url: https://github.com/YangLi-dev/network_ninja.git
+      ref: main
+
+dev_dependencies:
+  test: ^1.26.3
+
