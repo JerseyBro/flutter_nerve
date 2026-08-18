@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nerve_core/nerve_core.dart';
 
-class DebugHubOverlayHost extends StatelessWidget {
+/// Host widget that overlays the Nerve launcher and panel on top of [child].
+///
+/// Self-contained by design: it requires no [Overlay] or [Navigator] ancestor,
+/// so it works both inside a `MaterialApp.builder` (above the navigator) and
+/// as a plain `home:` widget (below the navigator).
+class DebugHubOverlayHost extends StatefulWidget {
   const DebugHubOverlayHost({
     required this.enabled,
     required this.controller,
@@ -15,65 +20,133 @@ class DebugHubOverlayHost extends StatelessWidget {
   final Widget child;
 
   @override
+  State<DebugHubOverlayHost> createState() => _DebugHubOverlayHostState();
+}
+
+class _DebugHubOverlayHostState extends State<DebugHubOverlayHost> {
+  bool _panelVisible = false;
+
+  @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        child,
-        if (enabled)
+        widget.child,
+        if (widget.enabled)
           Positioned(
             right: 20 + MediaQuery.paddingOf(context).right,
             bottom: 96 + MediaQuery.paddingOf(context).bottom,
-            child: _NerveLauncher(controller: controller),
+            child: _NerveLauncher(onPressed: _openPanel),
+          ),
+        if (widget.enabled && _panelVisible)
+          Positioned.fill(
+            child: _NervePanelOverlay(
+              controller: widget.controller,
+              onDismiss: _closePanel,
+            ),
           ),
       ],
     );
   }
+
+  void _openPanel() => setState(() => _panelVisible = true);
+
+  void _closePanel() => setState(() => _panelVisible = false);
 }
 
 class _NerveLauncher extends StatelessWidget {
-  const _NerveLauncher({required this.controller});
+  const _NerveLauncher({required this.onPressed});
 
-  final DebugHubController controller;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Tooltip(
-        message: 'Open Nerve',
-        child: FloatingActionButton.small(
-          heroTag: 'nerve-debug-launcher',
-          backgroundColor: const Color(0xFF16181D),
-          foregroundColor: Colors.white,
-          onPressed: () => _showNervePanel(context, controller),
-          child: const Icon(Icons.bolt_rounded, size: 20),
-        ),
+    return Semantics(
+      label: 'Open Nerve debug console',
+      button: true,
+      child: FloatingActionButton.small(
+        heroTag: 'nerve-debug-launcher',
+        backgroundColor: const Color(0xFF16181D),
+        foregroundColor: Colors.white,
+        onPressed: onPressed,
+        child: const Icon(Icons.bolt_rounded, size: 20),
       ),
     );
   }
 }
 
-void _showNervePanel(BuildContext context, DebugHubController controller) {
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: const Color(0xFF101216),
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (context) => _NervePanel(controller: controller),
-  );
+class _NervePanelOverlay extends StatelessWidget {
+  const _NervePanelOverlay({
+    required this.controller,
+    required this.onDismiss,
+  });
+
+  final DebugHubController controller;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 160),
+            builder: (context, opacity, _) => GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onDismiss,
+              child: ColoredBox(color: Color.fromRGBO(0, 0, 0, opacity * 0.6)),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            builder: (context, t, child) => Opacity(
+              opacity: t,
+              child: Transform.translate(
+                offset: Offset(0, 24 * (1 - t)),
+                child: child,
+              ),
+            ),
+            child: Material(
+              color: const Color(0xFF101216),
+              clipBehavior: Clip.antiAlias,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: screenHeight * 0.8),
+                child: _NervePanel(
+                  controller: controller,
+                  onDismiss: onDismiss,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _NervePanel extends StatelessWidget {
-  const _NervePanel({required this.controller});
+  const _NervePanel({required this.controller, required this.onDismiss});
 
   final DebugHubController controller;
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final plugins = controller.plugins;
     return SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,7 +164,6 @@ class _NervePanel extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Copy diagnostics',
                   color: Colors.white70,
                   icon: const Icon(Icons.copy_rounded),
                   onPressed: () {
@@ -101,6 +173,11 @@ class _NervePanel extends StatelessWidget {
                       ),
                     );
                   },
+                ),
+                IconButton(
+                  color: Colors.white70,
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: onDismiss,
                 ),
               ],
             ),
