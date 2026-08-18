@@ -1,0 +1,19 @@
+name: nerve
+description: Pluggable debug console for Flutter apps. Umbrella package for the Nerve toolchain.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.9
+
+dependencies:
+  nerve_core:
+    path: ../nerve_core
+  nerve_flutter:
+    path: ../nerve_flutter
+  nerve_network_ninja:
+    path: ../nerve_network_ninja
+
+dev_dependencies:
+  lints: ^6.0.0

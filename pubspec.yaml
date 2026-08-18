@@ -5,6 +5,7 @@ environment:
   sdk: ^3.10.9
 
 workspace:
+  - packages/nerve
   - packages/nerve_core
   - packages/nerve_flutter
   - packages/nerve_network_ninja
