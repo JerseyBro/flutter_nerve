@@ -108,4 +108,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nerve'), findsNothing);
   });
+
+  testWidgets('launcher can open a configured plugin page directly', (
+    tester,
+  ) async {
+    final controller = DebugHubController()
+      ..registerPlugin(
+        StaticDebugHubPlugin(
+          id: 'network',
+          title: 'Network',
+          summary: () =>
+              const DebugHubSummary(label: 'Captured requests', value: '3'),
+        ),
+      );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DebugHubOverlayHost(
+          enabled: true,
+          controller: controller,
+          launchPluginId: 'network',
+          pluginPages: {
+            'network': (context, actions) => TextButton(
+              onPressed: actions.showHome,
+              child: const Text('Network Logs'),
+            ),
+          },
+          child: const Text('Home'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.bolt_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Network Logs'), findsOneWidget);
+
+    await tester.tap(find.text('Network Logs'));
+    await tester.pumpAndSettle();
+    expect(find.text('Network'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+  });
 }

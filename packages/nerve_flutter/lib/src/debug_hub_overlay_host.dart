@@ -2,6 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nerve_core/nerve_core.dart';
 
+typedef DebugHubPluginPageBuilder =
+    Widget Function(BuildContext context, DebugHubPluginPageActions actions);
+
+class DebugHubPluginPageActions {
+  const DebugHubPluginPageActions({
+    required this.showHome,
+    required this.dismiss,
+  });
+
+  final VoidCallback showHome;
+  final VoidCallback dismiss;
+}
+
 /// Host widget that overlays the Nerve launcher and panel on top of [child].
 ///
 /// Self-contained by design: it requires no [Overlay] or [Navigator] ancestor,
@@ -12,12 +25,16 @@ class DebugHubOverlayHost extends StatefulWidget {
     required this.enabled,
     required this.controller,
     required this.child,
+    this.pluginPages = const {},
+    this.launchPluginId,
     super.key,
   });
 
   final bool enabled;
   final DebugHubController controller;
   final Widget child;
+  final Map<String, DebugHubPluginPageBuilder> pluginPages;
+  final String? launchPluginId;
 
   @override
   State<DebugHubOverlayHost> createState() => _DebugHubOverlayHostState();
@@ -25,6 +42,7 @@ class DebugHubOverlayHost extends StatefulWidget {
 
 class _DebugHubOverlayHostState extends State<DebugHubOverlayHost> {
   bool _panelVisible = false;
+  String? _activePluginId;
 
   @override
   Widget build(BuildContext context) {
@@ -41,16 +59,34 @@ class _DebugHubOverlayHostState extends State<DebugHubOverlayHost> {
           Positioned.fill(
             child: _NervePanelOverlay(
               controller: widget.controller,
+              pluginPages: widget.pluginPages,
+              activePluginId: _activePluginId,
               onDismiss: _closePanel,
+              onOpenPlugin: _openPluginPage,
+              onShowHome: _showHome,
             ),
           ),
       ],
     );
   }
 
-  void _openPanel() => setState(() => _panelVisible = true);
+  void _openPanel() => setState(() {
+    _activePluginId = widget.launchPluginId;
+    _panelVisible = true;
+  });
 
-  void _closePanel() => setState(() => _panelVisible = false);
+  void _openPluginPage(String pluginId) => setState(() {
+    _activePluginId = pluginId;
+  });
+
+  void _showHome() => setState(() {
+    _activePluginId = null;
+  });
+
+  void _closePanel() => setState(() {
+    _panelVisible = false;
+    _activePluginId = null;
+  });
 }
 
 class _NerveLauncher extends StatelessWidget {
@@ -77,15 +113,26 @@ class _NerveLauncher extends StatelessWidget {
 class _NervePanelOverlay extends StatelessWidget {
   const _NervePanelOverlay({
     required this.controller,
+    required this.pluginPages,
+    required this.activePluginId,
     required this.onDismiss,
+    required this.onOpenPlugin,
+    required this.onShowHome,
   });
 
   final DebugHubController controller;
+  final Map<String, DebugHubPluginPageBuilder> pluginPages;
+  final String? activePluginId;
   final VoidCallback onDismiss;
+  final ValueChanged<String> onOpenPlugin;
+  final VoidCallback onShowHome;
 
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
+    final activePage = activePluginId == null
+        ? null
+        : pluginPages[activePluginId];
     return Stack(
       children: [
         Positioned.fill(
@@ -117,14 +164,25 @@ class _NervePanelOverlay extends StatelessWidget {
             child: Material(
               color: const Color(0xFF101216),
               clipBehavior: Clip.antiAlias,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: screenHeight * 0.8),
-                child: _NervePanel(
-                  controller: controller,
-                  onDismiss: onDismiss,
-                ),
+                constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
+                child: activePage == null
+                    ? _NervePanel(
+                        controller: controller,
+                        pluginPages: pluginPages,
+                        onDismiss: onDismiss,
+                        onOpenPlugin: onOpenPlugin,
+                      )
+                    : activePage(
+                        context,
+                        DebugHubPluginPageActions(
+                          showHome: onShowHome,
+                          dismiss: onDismiss,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -135,10 +193,17 @@ class _NervePanelOverlay extends StatelessWidget {
 }
 
 class _NervePanel extends StatelessWidget {
-  const _NervePanel({required this.controller, required this.onDismiss});
+  const _NervePanel({
+    required this.controller,
+    required this.pluginPages,
+    required this.onDismiss,
+    required this.onOpenPlugin,
+  });
 
   final DebugHubController controller;
+  final Map<String, DebugHubPluginPageBuilder> pluginPages;
   final VoidCallback onDismiss;
+  final ValueChanged<String> onOpenPlugin;
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +255,11 @@ class _NervePanel extends StatelessWidget {
                   shrinkWrap: true,
                   itemBuilder: (context, index) {
                     final plugin = plugins[index];
-                    return _PluginTile(plugin: plugin);
+                    return _PluginTile(
+                      plugin: plugin,
+                      canOpen: pluginPages.containsKey(plugin.id),
+                      onTap: () => onOpenPlugin(plugin.id),
+                    );
                   },
                   separatorBuilder: (_, _) =>
                       const Divider(color: Color(0xFF252A33), height: 1),
@@ -205,15 +274,22 @@ class _NervePanel extends StatelessWidget {
 }
 
 class _PluginTile extends StatelessWidget {
-  const _PluginTile({required this.plugin});
+  const _PluginTile({
+    required this.plugin,
+    required this.canOpen,
+    required this.onTap,
+  });
 
   final DebugHubPlugin plugin;
+  final bool canOpen;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final summary = plugin.summary();
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      onTap: canOpen ? onTap : null,
       title: Text(
         plugin.title,
         style: const TextStyle(
@@ -225,13 +301,22 @@ class _PluginTile extends StatelessWidget {
         summary.label,
         style: const TextStyle(color: Colors.white54),
       ),
-      trailing: Text(
-        summary.value,
-        style: TextStyle(
-          color: _statusColor(summary.status),
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            summary.value,
+            style: TextStyle(
+              color: _statusColor(summary.status),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (canOpen) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+          ],
+        ],
       ),
     );
   }

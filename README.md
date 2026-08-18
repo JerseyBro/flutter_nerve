@@ -79,10 +79,18 @@ MaterialApp(
   builder: (context, child) => DebugHubOverlayHost(
     enabled: const bool.fromEnvironment('ENABLE_DEVTOOL'),
     controller: controller,
+    launchPluginId: 'network',
+    pluginPages: {
+      'network': (context, actions) => NerveNetworkLogsPage(actions: actions),
+    },
     child: child ?? const SizedBox.shrink(),
   ),
 );
 ```
+
+`NerveNetworkLogsPage` is Nerve's own network log UI. It reads captured logs
+through the public `network_ninja` API and does not import third-party
+`src/screens` or `src/widgets`.
 
 ## Development
 

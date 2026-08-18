@@ -7,13 +7,13 @@ Nerve 是一个 Flutter App 内置调试控制台。
 
 ## 当前状态
 
-当前是 v0.1 初始骨架，适合本地验证和 Git 依赖接入；暂不作为 pub.dev 发布版本。
+当前是 v0.1 Git 依赖接入版本，已包含可用的网络日志页；暂不作为 pub.dev 发布版本。
 
 ## 包结构
 
 - `nerve_core`：插件协议、摘要模型、诊断导出和脱敏。
 - `nerve_flutter`：Flutter 悬浮入口和调试面板 UI。
-- `nerve_network_ninja`：基于 `network_ninja` 公开 API 的适配层。
+- `nerve_network_ninja`：基于 `network_ninja` 公开 API 的采集适配和 Nerve 网络日志 UI。
 - `nerve_wen_adapter`：Wen Wallet 接入示例，不作为公开包发布。
 - `example`：最小 Flutter 示例 App。
 
@@ -31,6 +31,7 @@ Wen Wallet 后续只在接线层依赖 Nerve：
 
 - 用 `DebugHubOverlayHost` 替换当前内部浮球 Host。
 - 用 `NerveNetworkNinjaAdapter` 接入 Dio 网络日志。
+- 用 `NerveNetworkLogsPage` 作为网络日志详情页，不再依赖 `network_ninja/src` 私有 UI。
 - Wen 自己传入 env、API host、WS host、MPC host、连通性测试 endpoint 和业务面板。
 - Nerve 核心包不写死 Wen 域名、路由、用户对象或钱包数据。
 
@@ -49,4 +50,3 @@ dart analyze
 ## License
 
 MIT
-

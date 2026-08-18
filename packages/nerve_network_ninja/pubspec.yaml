@@ -8,14 +8,21 @@ environment:
   sdk: ^3.10.9
 
 dependencies:
+  flutter:
+    sdk: flutter
   dio: ^5.7.0
   nerve_core:
     path: ../nerve_core
+  nerve_flutter:
+    path: ../nerve_flutter
   network_ninja:
     git:
       url: https://github.com/YangLi-dev/network_ninja.git
       ref: main
 
 dev_dependencies:
-  test: ^1.26.3
+  flutter_test:
+    sdk: flutter
 
+flutter:
+  uses-material-design: true

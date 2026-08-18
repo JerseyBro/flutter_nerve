@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:nerve_network_ninja/nerve_network_ninja.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('attachTo adds a single Network Ninja interceptor per Dio', () {

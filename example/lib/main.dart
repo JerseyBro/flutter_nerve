@@ -51,6 +51,11 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
       home: DebugHubOverlayHost(
         enabled: true,
         controller: _controller,
+        launchPluginId: 'network',
+        pluginPages: {
+          'network': (context, actions) =>
+              NerveNetworkLogsPage(actions: actions),
+        },
         child: Scaffold(
           appBar: AppBar(title: const Text('Nerve Example')),
           body: Center(
