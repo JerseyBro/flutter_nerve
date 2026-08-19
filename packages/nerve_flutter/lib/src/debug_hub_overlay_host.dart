@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nerve_core/nerve_core.dart';
@@ -44,16 +46,53 @@ class _DebugHubOverlayHostState extends State<DebugHubOverlayHost> {
   bool _panelVisible = false;
   String? _activePluginId;
 
+  static const _kLauncherSize = 44.0;
+  static const _kLauncherMargin = 20.0;
+  static const _kLauncherBottomOffset = 96.0;
+
+  // Draggable launcher state — absolute left/top position.
+  Offset? _launcherPosition;
+  Offset? _dragStartGlobalPosition;
+  Offset? _dragStartLauncherPosition;
+  bool _launcherDragged = false;
+
   @override
   Widget build(BuildContext context) {
+    final padding = MediaQuery.paddingOf(context);
+    final screen = MediaQuery.sizeOf(context);
+
+    // Default: bottom-right with safe-area padding.
+    final defaultX =
+        screen.width - _kLauncherSize - _kLauncherMargin - padding.right;
+    final defaultY = screen.height -
+        _kLauncherSize -
+        _kLauncherBottomOffset -
+        padding.bottom;
+    final pos = _clampLauncherPosition(
+      _launcherPosition ?? Offset(defaultX, defaultY),
+      screen,
+      padding,
+    );
+
     return Stack(
       children: [
         widget.child,
         if (widget.enabled)
           Positioned(
-            right: 20 + MediaQuery.paddingOf(context).right,
-            bottom: 96 + MediaQuery.paddingOf(context).bottom,
-            child: _NerveLauncher(onPressed: _openPanel),
+            left: pos.dx.clamp(0, screen.width - _kLauncherSize),
+            top: pos.dy.clamp(0, screen.height - _kLauncherSize),
+            child: _NerveLauncher(
+              key: const ValueKey('nerve-debug-launcher'),
+              onPanStart: (details) => _handleLauncherPanStart(details),
+              onPanUpdate: (details) => _handleLauncherPanUpdate(
+                details,
+                screen,
+                padding,
+              ),
+              onPanEnd: _handleLauncherPanEnd,
+              onPanCancel: _resetLauncherDragState,
+              onTap: _openPanel,
+            ),
           ),
         if (widget.enabled && _panelVisible)
           Positioned.fill(
@@ -87,24 +126,112 @@ class _DebugHubOverlayHostState extends State<DebugHubOverlayHost> {
     _panelVisible = false;
     _activePluginId = null;
   });
+
+  void _handleLauncherPanStart(DragStartDetails details) {
+    _dragStartGlobalPosition = details.globalPosition;
+    _dragStartLauncherPosition =
+        _launcherPosition ?? const Offset(_kLauncherMargin, _kLauncherMargin);
+    _launcherDragged = false;
+  }
+
+  void _handleLauncherPanUpdate(
+    DragUpdateDetails details,
+    Size screen,
+    EdgeInsets padding,
+  ) {
+    final dragStartLauncherPosition = _dragStartLauncherPosition;
+    final dragStartGlobalPosition = _dragStartGlobalPosition;
+    if (dragStartGlobalPosition == null || dragStartLauncherPosition == null) {
+      return;
+    }
+    final delta = details.globalPosition - dragStartGlobalPosition;
+    if (!_launcherDragged && delta.distance < 6) {
+      return;
+    }
+    if (!_launcherDragged) {
+      _launcherDragged = true;
+    }
+    setState(() {
+      _launcherPosition = _clampLauncherPosition(
+        dragStartLauncherPosition + delta,
+        screen,
+        padding,
+      );
+    });
+  }
+
+  void _handleLauncherPanEnd(DragEndDetails details) {
+    final wasDragged = _launcherDragged;
+    _resetLauncherDragState();
+    if (!wasDragged) _openPanel();
+  }
+
+  void _resetLauncherDragState([PointerEvent? event]) {
+    _dragStartGlobalPosition = null;
+    _dragStartLauncherPosition = null;
+    _launcherDragged = false;
+  }
+
+  Offset _clampLauncherPosition(
+    Offset position,
+    Size screen,
+    EdgeInsets padding,
+  ) {
+    final minX = _kLauncherMargin + padding.left;
+    final minY = _kLauncherMargin + padding.top;
+    final maxX = math.max(
+      minX,
+      screen.width - _kLauncherSize - _kLauncherMargin - padding.right,
+    );
+    final maxY = math.max(
+      minY,
+      screen.height - _kLauncherSize - _kLauncherMargin - padding.bottom,
+    );
+    return Offset(
+      position.dx.clamp(minX, maxX),
+      position.dy.clamp(minY, maxY),
+    );
+  }
 }
 
 class _NerveLauncher extends StatelessWidget {
-  const _NerveLauncher({required this.onPressed});
+  const _NerveLauncher({
+    required this.onPanStart,
+    required this.onPanUpdate,
+    required this.onPanEnd,
+    required this.onPanCancel,
+    required this.onTap,
+    super.key,
+  });
 
-  final VoidCallback onPressed;
+  final void Function(DragStartDetails details) onPanStart;
+  final void Function(DragUpdateDetails details) onPanUpdate;
+  final void Function(DragEndDetails details) onPanEnd;
+  final VoidCallback onPanCancel;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: 'Open Nerve debug console',
       button: true,
-      child: FloatingActionButton.small(
-        heroTag: 'nerve-debug-launcher',
-        backgroundColor: const Color(0xFF16181D),
-        foregroundColor: Colors.white,
-        onPressed: onPressed,
-        child: const Icon(Icons.bolt_rounded, size: 20),
+      onTap: onTap,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        onPanStart: onPanStart,
+        onPanUpdate: onPanUpdate,
+        onPanEnd: onPanEnd,
+        onPanCancel: onPanCancel,
+        child: Material(
+          color: const Color(0xFF16181D),
+          shape: const CircleBorder(),
+          elevation: 6,
+          child: const SizedBox.square(
+            dimension: _DebugHubOverlayHostState._kLauncherSize,
+            child: Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+          ),
+        ),
       ),
     );
   }

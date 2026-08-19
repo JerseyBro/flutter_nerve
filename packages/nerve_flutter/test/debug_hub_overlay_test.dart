@@ -148,4 +148,88 @@ void main() {
     expect(find.text('Network'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
   });
+
+  testWidgets('environment page applies the selected environment', (
+    tester,
+  ) async {
+    var appliedEnvironment = '';
+    final controller = DebugHubController()
+      ..registerPlugin(
+        const EnvironmentDebugPlugin(
+          env: 'dev',
+          hosts: {'api': 'https://api.example.com'},
+        ),
+      );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DebugHubOverlayHost(
+          enabled: true,
+          controller: controller,
+          launchPluginId: 'environment',
+          pluginPages: {
+            'environment': (context, actions) => DebugHubEnvironmentPage(
+                  actions: actions,
+                  currentEnvironment: 'dev',
+                  options: const [
+                    DebugHubEnvironmentOption(
+                      value: 'dev',
+                      label: 'Development',
+                    ),
+                    DebugHubEnvironmentOption(
+                      value: 'prod',
+                      label: 'Production',
+                    ),
+                  ],
+                  onApply: (environment) async {
+                    appliedEnvironment = environment;
+                  },
+                ),
+          },
+          child: const Text('Home'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('nerve-debug-launcher')));
+    await tester.pumpAndSettle();
+    expect(find.text('Environment'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('environment-option-prod')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Switch & Restart'));
+    await tester.pumpAndSettle();
+
+    expect(appliedEnvironment, 'prod');
+  });
+
+  testWidgets('dragging the launcher repositions it without opening panel', (
+    tester,
+  ) async {
+    final controller = DebugHubController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DebugHubOverlayHost(
+          enabled: true,
+          controller: controller,
+          child: const Text('Home'),
+        ),
+      ),
+    );
+
+    final finder = find.byKey(const ValueKey('nerve-debug-launcher'));
+    expect(finder, findsOneWidget);
+    final before = tester.getTopLeft(finder);
+
+    await tester.drag(finder, const Offset(-100, -100));
+    await tester.pumpAndSettle();
+
+    final after = tester.getTopLeft(finder);
+    expect(after.dx, lessThan(before.dx));
+    expect(after.dy, lessThan(before.dy));
+    expect(find.text('Nerve'), findsNothing);
+
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+    expect(find.text('Nerve'), findsOneWidget);
+  });
 }
