@@ -152,10 +152,8 @@ class _NerveNetworkListView extends StatelessWidget {
             onLeadingPressed: onBack,
             onClose: onClose,
             actions: [
-              IconButton(
-                tooltip: 'Clear logs',
-                color: Colors.white70,
-                icon: const Icon(Icons.clear_all_rounded),
+              _NerveIconAction(
+                icon: Icons.clear_all_rounded,
                 onPressed: totalCount == 0 ? null : onClearLogs,
               ),
             ],
@@ -209,10 +207,10 @@ class _NerveToolbar extends StatelessWidget {
     return Row(
       children: [
         if (leadingIcon != null)
-          IconButton(
-            color: Colors.white,
-            icon: Icon(leadingIcon),
+          _NerveIconAction(
+            icon: leadingIcon!,
             onPressed: onLeadingPressed,
+            color: Colors.white,
           ),
         Expanded(
           child: Column(
@@ -239,11 +237,7 @@ class _NerveToolbar extends StatelessWidget {
           ),
         ),
         ...actions,
-        IconButton(
-          color: Colors.white70,
-          icon: const Icon(Icons.close_rounded),
-          onPressed: onClose,
-        ),
+        _NerveIconAction(icon: Icons.close_rounded, onPressed: onClose),
       ],
     );
   }
@@ -272,9 +266,9 @@ class _SearchField extends StatelessWidget {
         prefixIcon: const Icon(Icons.search_rounded, color: Colors.white54),
         suffixIcon: query.isEmpty
             ? null
-            : IconButton(
+            : _NerveIconAction(
+                icon: Icons.close_rounded,
                 color: Colors.white54,
-                icon: const Icon(Icons.close_rounded),
                 onPressed: () {
                   controller.clear();
                   onChanged('');
@@ -287,6 +281,35 @@ class _SearchField extends StatelessWidget {
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+    );
+  }
+}
+
+class _NerveIconAction extends StatelessWidget {
+  const _NerveIconAction({
+    required this.icon,
+    required this.onPressed,
+    this.color = Colors.white70,
+  });
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Icon(
+          icon,
+          color: enabled ? color : color.withValues(alpha: 0.3),
+          size: 24,
+        ),
       ),
     );
   }
@@ -530,40 +553,13 @@ class _NerveNetworkDetailView extends StatelessWidget {
             leadingIcon: Icons.arrow_back_ios_new_rounded,
             onLeadingPressed: onBack,
             onClose: onClose,
-            actions: [
-              PopupMenuButton<_CopyAction>(
-                iconColor: Colors.white70,
-                color: const Color(0xFF1D2028),
-                onSelected: (action) => _copy(context, action),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: _CopyAction.url,
-                    child: Text('Copy URL'),
-                  ),
-                  PopupMenuItem(
-                    value: _CopyAction.curl,
-                    child: Text('Copy cURL'),
-                  ),
-                  PopupMenuItem(
-                    value: _CopyAction.request,
-                    child: Text('Copy Request'),
-                  ),
-                  PopupMenuItem(
-                    value: _CopyAction.response,
-                    child: Text('Copy Response'),
-                  ),
-                  PopupMenuItem(
-                    value: _CopyAction.json,
-                    child: Text('Copy JSON'),
-                  ),
-                ],
-              ),
-            ],
           ),
           const SizedBox(height: 12),
           Expanded(
             child: ListView(
               children: [
+                _CopyActionStrip(onCopy: _copy),
+                const SizedBox(height: 12),
                 _DetailSection(
                   title: 'Summary',
                   child: _KeyValueBlock(
@@ -687,7 +683,7 @@ class _NerveNetworkDetailView extends StatelessWidget {
     return redactor.redactValue(value);
   }
 
-  void _copy(BuildContext _, _CopyAction action) {
+  void _copy(_CopyAction action) {
     Clipboard.setData(ClipboardData(text: _copyPayload(action)));
   }
 }
@@ -697,6 +693,69 @@ String _shellQuote(String value) {
 }
 
 enum _CopyAction { url, curl, request, response, json }
+
+class _CopyActionStrip extends StatelessWidget {
+  const _CopyActionStrip({required this.onCopy});
+
+  final ValueChanged<_CopyAction> onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: const [
+        _CopyActionChip(label: 'URL', action: _CopyAction.url),
+        _CopyActionChip(label: 'cURL', action: _CopyAction.curl),
+        _CopyActionChip(label: 'Request', action: _CopyAction.request),
+        _CopyActionChip(label: 'Response', action: _CopyAction.response),
+        _CopyActionChip(label: 'JSON', action: _CopyAction.json),
+      ].map((chip) => chip.copyWith(onCopy: onCopy)).toList(growable: false),
+    );
+  }
+}
+
+class _CopyActionChip extends StatelessWidget {
+  const _CopyActionChip({
+    required this.label,
+    required this.action,
+    this.onCopy,
+  });
+
+  final String label;
+  final _CopyAction action;
+  final ValueChanged<_CopyAction>? onCopy;
+
+  _CopyActionChip copyWith({required ValueChanged<_CopyAction> onCopy}) {
+    return _CopyActionChip(label: label, action: action, onCopy: onCopy);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onCopy?.call(action),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1D2028),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFF2B303B)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            'Copy $label',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _DetailSection extends StatelessWidget {
   const _DetailSection({required this.title, required this.child});

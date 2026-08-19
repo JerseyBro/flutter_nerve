@@ -228,9 +228,8 @@ class _NervePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                IconButton(
-                  color: Colors.white70,
-                  icon: const Icon(Icons.copy_rounded),
+                _NerveIconAction(
+                  icon: Icons.copy_rounded,
                   onPressed: () {
                     Clipboard.setData(
                       ClipboardData(
@@ -239,9 +238,8 @@ class _NervePanel extends StatelessWidget {
                     );
                   },
                 ),
-                IconButton(
-                  color: Colors.white70,
-                  icon: const Icon(Icons.close_rounded),
+                _NerveIconAction(
+                  icon: Icons.close_rounded,
                   onPressed: onDismiss,
                 ),
               ],
@@ -268,6 +266,25 @@ class _NervePanel extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NerveIconAction extends StatelessWidget {
+  const _NerveIconAction({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Icon(icon, color: Colors.white70, size: 24),
       ),
     );
   }

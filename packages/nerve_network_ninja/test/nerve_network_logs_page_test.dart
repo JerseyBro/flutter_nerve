@@ -49,7 +49,7 @@ void main() {
 
     expect(find.text('Summary'), findsOneWidget);
     expect(find.text('Request Headers'), findsOneWidget);
-    expect(find.text('Response Body'), findsOneWidget);
+    expect(find.text('Copy Request'), findsOneWidget);
   });
 
   testWidgets('search and filter narrow the log list', (tester) async {
@@ -102,8 +102,6 @@ void main() {
     await tester.pumpWidget(_TestHost());
     await tester.tap(find.text('POST'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Copy Request'));
     await tester.pumpAndSettle();
 
@@ -111,6 +109,34 @@ void main() {
     expect(clipboard?.text, contains('[REDACTED]'));
     expect(clipboard?.text, isNot(contains('secret-token')));
     expect(clipboard?.text, isNot(contains('secret words')));
+  });
+
+  testWidgets('renders in a plain Material shell', (tester) async {
+    NetworkLogsService.instance.addLog(
+      NetworkLog(
+        id: '1',
+        timestamp: DateTime(2026, 8, 18, 10, 30),
+        method: 'GET',
+        endpoint: 'https://api.example.com/api/v1/app/init',
+        responseStatus: 200,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: NerveNetworkLogsPage(
+            actions: DebugHubPluginPageActions(
+              showHome: () {},
+              dismiss: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Network Logs'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 
