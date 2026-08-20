@@ -89,6 +89,62 @@ void main() {
     },
   );
 
+  testWidgets(
+    'settings select works in MaterialApp.builder without Navigator ancestor',
+    (tester) async {
+      Object? selectedEnv = 'dev';
+      final settingsPlugin = DebugSettingsPlugin(
+        settings: () => [
+          DebugSetting(
+            id: 'env',
+            label: 'Environment',
+            type: DebugSettingType.select,
+            currentValue: selectedEnv,
+            defaultValue: 'dev',
+            options: const [
+              DebugSettingOption(value: 'dev', label: 'Development'),
+              DebugSettingOption(value: 'prod', label: 'Production'),
+            ],
+            restartRequired: true,
+          ),
+        ],
+        onApply: (values) async {
+          selectedEnv = values['env'];
+          return const DebugSettingsApplyResult(restartRequired: true);
+        },
+      );
+      final controller = DebugHubController()..registerPlugin(settingsPlugin);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: const Text('Home'),
+          builder: (context, child) => DebugHubOverlayHost(
+            enabled: true,
+            controller: controller,
+            launchPluginId: 'settings',
+            pluginPages: {
+              'settings': (context, actions) => DebugHubSettingsPage(
+                actions: actions,
+                plugin: settingsPlugin,
+              ),
+            },
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('nerve-debug-launcher')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Production'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('debug-settings-apply')));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(selectedEnv, 'prod');
+    },
+  );
+
   testWidgets('panel close button dismisses the panel', (tester) async {
     final controller = DebugHubController();
     await tester.pumpWidget(
