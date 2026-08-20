@@ -169,22 +169,16 @@ void main() {
           launchPluginId: 'environment',
           pluginPages: {
             'environment': (context, actions) => DebugHubEnvironmentPage(
-                  actions: actions,
-                  currentEnvironment: 'dev',
-                  options: const [
-                    DebugHubEnvironmentOption(
-                      value: 'dev',
-                      label: 'Development',
-                    ),
-                    DebugHubEnvironmentOption(
-                      value: 'prod',
-                      label: 'Production',
-                    ),
-                  ],
-                  onApply: (environment) async {
-                    appliedEnvironment = environment;
-                  },
-                ),
+              actions: actions,
+              currentEnvironment: 'dev',
+              options: const [
+                DebugHubEnvironmentOption(value: 'dev', label: 'Development'),
+                DebugHubEnvironmentOption(value: 'prod', label: 'Production'),
+              ],
+              onApply: (environment) async {
+                appliedEnvironment = environment;
+              },
+            ),
           },
           child: const Text('Home'),
         ),
@@ -200,6 +194,105 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(appliedEnvironment, 'prod');
+  });
+
+  testWidgets('settings page edits select bool text and shows restart notice', (
+    tester,
+  ) async {
+    late Map<String, Object?> applied;
+    final plugin = DebugSettingsPlugin(
+      settings: () => const [
+        DebugSetting(
+          id: 'env',
+          label: 'Environment',
+          group: 'Runtime',
+          type: DebugSettingType.select,
+          currentValue: 'dev',
+          defaultValue: 'dev',
+          options: [
+            DebugSettingOption(value: 'dev', label: 'Development'),
+            DebugSettingOption(value: 'prod', label: 'Production'),
+          ],
+          restartRequired: true,
+        ),
+        DebugSetting(
+          id: 'FORCE_REVIEW_MODE',
+          label: 'Force review mode',
+          group: 'Runtime',
+          type: DebugSettingType.boolean,
+          currentValue: false,
+          defaultValue: false,
+          restartRequired: true,
+        ),
+        DebugSetting(
+          id: 'api_host',
+          label: 'API host',
+          group: 'Network',
+          type: DebugSettingType.text,
+          currentValue: 'https://api.dev.example.com',
+          defaultValue: 'https://api.dev.example.com',
+          restartRequired: true,
+        ),
+      ],
+      onApply: (values) async {
+        applied = values;
+        return const DebugSettingsApplyResult(
+          message: 'Saved. Restart the app to apply changes.',
+          restartRequired: true,
+        );
+      },
+    );
+    final controller = DebugHubController()..registerPlugin(plugin);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DebugHubOverlayHost(
+          enabled: true,
+          controller: controller,
+          launchPluginId: 'settings',
+          pluginPages: {
+            'settings': (context, actions) =>
+                DebugHubSettingsPage(actions: actions, plugin: plugin),
+          },
+          child: const Text('Home'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('nerve-debug-launcher')));
+    await tester.pumpAndSettle();
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Runtime'), findsOneWidget);
+    expect(find.text('Network'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('debug-setting-env')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Production').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('debug-setting-FORCE_REVIEW_MODE')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('debug-setting-api_host')),
+      'https://api.override.example.com',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('debug-settings-apply')));
+    await tester.pumpAndSettle();
+
+    expect(applied, {
+      'env': 'prod',
+      'FORCE_REVIEW_MODE': true,
+      'api_host': 'https://api.override.example.com',
+    });
+    expect(
+      find.text('Saved. Restart the app to apply changes.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dragging the launcher repositions it without opening panel', (

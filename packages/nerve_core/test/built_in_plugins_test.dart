@@ -32,6 +32,88 @@ void main() {
   );
 
   test(
+    'DebugSettingsPlugin summarizes changed settings and redacts diagnostics',
+    () {
+      final plugin = DebugSettingsPlugin(
+        settings: () => const [
+          DebugSetting(
+            id: 'env',
+            label: 'Environment',
+            type: DebugSettingType.select,
+            currentValue: 'dev',
+            defaultValue: 'prod',
+            options: [
+              DebugSettingOption(value: 'dev', label: 'Development'),
+              DebugSettingOption(value: 'prod', label: 'Production'),
+            ],
+            restartRequired: true,
+          ),
+          DebugSetting(
+            id: 'api_token',
+            label: 'API Token',
+            type: DebugSettingType.text,
+            currentValue: 'secret-token',
+            defaultValue: '',
+            sensitive: true,
+          ),
+        ],
+      );
+
+      expect(plugin.id, 'settings');
+      expect(plugin.summary().value, '2 changed');
+
+      final diagnostics = plugin.diagnostics();
+      final settings = diagnostics['settings']! as List<Object?>;
+      expect(settings.toString(), isNot(contains('secret-token')));
+      expect(settings.toString(), contains('[REDACTED]'));
+    },
+  );
+
+  test(
+    'DebugSettingsPlugin normalizes apply values and marks restart required',
+    () async {
+      late Map<String, Object?> applied;
+      final plugin = DebugSettingsPlugin(
+        settings: () => const [
+          DebugSetting(
+            id: 'env',
+            label: 'Environment',
+            type: DebugSettingType.select,
+            currentValue: 'dev',
+            defaultValue: 'prod',
+            options: [
+              DebugSettingOption(value: 'dev', label: 'Development'),
+              DebugSettingOption(value: 'prod', label: 'Production'),
+            ],
+            restartRequired: true,
+          ),
+          DebugSetting(
+            id: 'FORCE_REVIEW_MODE',
+            label: 'Force review mode',
+            type: DebugSettingType.boolean,
+            currentValue: false,
+            defaultValue: false,
+          ),
+        ],
+        onApply: (values) async {
+          applied = values;
+          return const DebugSettingsApplyResult(message: 'Saved');
+        },
+      );
+
+      final result = await plugin.apply({
+        'env': 'prod',
+        'FORCE_REVIEW_MODE': 'not-bool',
+        'unknown': true,
+      });
+
+      expect(applied, {'env': 'prod', 'FORCE_REVIEW_MODE': false});
+      expect(result.message, 'Saved');
+      expect(result.restartRequired, isTrue);
+    },
+  );
+
+  test(
     'ConnectivityDebugPlugin reports last probe status after running check',
     () async {
       final plugin = ConnectivityDebugPlugin(

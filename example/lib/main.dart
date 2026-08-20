@@ -18,7 +18,10 @@ class NerveExampleApp extends StatefulWidget {
 class _NerveExampleAppState extends State<NerveExampleApp> {
   late final Dio _dio;
   late final DebugHubController _controller;
+  late final DebugSettingsPlugin _settingsPlugin;
   String _environment = 'dev';
+  bool _forceReviewMode = false;
+  String _apiHost = 'https://api.dev.example.com';
   int _restartEpoch = 0;
 
   @override
@@ -26,15 +29,15 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
     super.initState();
     _dio = Dio();
     final networkAdapter = NerveNetworkNinjaAdapter()..attachTo(_dio);
+    _settingsPlugin = DebugSettingsPlugin(
+      settings: _buildSettings,
+      onApply: _applySettings,
+    );
     _controller = DebugHubController()
       ..registerPlugin(networkAdapter.plugin)
       ..registerPlugin(_buildEnvironmentPlugin())
-      ..registerPlugin(
-        FlagsDebugPlugin(const {
-          'ENABLE_DEVTOOL': true,
-          'FORCE_REVIEW_MODE': false,
-        }),
-      );
+      ..registerPlugin(_settingsPlugin)
+      ..registerPlugin(FlagsDebugPlugin(_buildFlags()));
   }
 
   EnvironmentDebugPlugin _buildEnvironmentPlugin() {
@@ -42,7 +45,7 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
       env: _environment,
       hosts: _environment == 'dev'
           ? const {
-              'api': 'https://api.example.com',
+              'api': 'https://api.dev.example.com',
               'ws': 'wss://ws.example.com',
             }
           : const {
@@ -52,13 +55,67 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
     );
   }
 
-  Future<void> _switchEnvironment(String environment) async {
+  Map<String, Object?> _buildFlags() => {
+    'ENABLE_DEVTOOL': true,
+    'FORCE_REVIEW_MODE': _forceReviewMode,
+  };
+
+  List<DebugSetting> _buildSettings() {
+    return [
+      DebugSetting(
+        id: 'env',
+        label: 'Environment',
+        description: 'Saved changes require an app restart.',
+        group: 'Runtime',
+        type: DebugSettingType.select,
+        currentValue: _environment,
+        defaultValue: 'dev',
+        options: const [
+          DebugSettingOption(value: 'dev', label: 'Development'),
+          DebugSettingOption(value: 'prod', label: 'Production'),
+        ],
+        restartRequired: true,
+      ),
+      DebugSetting(
+        id: 'FORCE_REVIEW_MODE',
+        label: 'Force review mode',
+        description: 'Local-only review mode override.',
+        group: 'Runtime',
+        type: DebugSettingType.boolean,
+        currentValue: _forceReviewMode,
+        defaultValue: false,
+        restartRequired: true,
+      ),
+      DebugSetting(
+        id: 'api_host',
+        label: 'API host',
+        description: 'Example text setting for host overrides.',
+        group: 'Network',
+        type: DebugSettingType.text,
+        currentValue: _apiHost,
+        defaultValue: 'https://api.dev.example.com',
+        restartRequired: true,
+      ),
+    ];
+  }
+
+  Future<DebugSettingsApplyResult> _applySettings(
+    Map<String, Object?> values,
+  ) async {
     setState(() {
-      _environment = environment;
+      _environment = values['env']?.toString() ?? _environment;
+      _forceReviewMode = values['FORCE_REVIEW_MODE'] == true;
+      _apiHost = values['api_host']?.toString() ?? _apiHost;
       _controller.unregisterPlugin('environment');
       _controller.registerPlugin(_buildEnvironmentPlugin());
+      _controller.unregisterPlugin('flags');
+      _controller.registerPlugin(FlagsDebugPlugin(_buildFlags()));
       _restartEpoch += 1;
     });
+    return const DebugSettingsApplyResult(
+      message: 'Saved. Restart the app to apply changes.',
+      restartRequired: true,
+    );
   }
 
   @override
@@ -75,25 +132,8 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
           pluginPages: {
             'network': (context, actions) =>
                 NerveNetworkLogsPage(actions: actions),
-            'environment': (context, actions) => DebugHubEnvironmentPage(
-                  actions: actions,
-                  currentEnvironment: _environment,
-                  options: const [
-                    DebugHubEnvironmentOption(
-                      value: 'dev',
-                      label: 'Development',
-                      description: 'Use dev backend and debug settings.',
-                    ),
-                    DebugHubEnvironmentOption(
-                      value: 'prod',
-                      label: 'Production',
-                      description: 'Use prod backend and release settings.',
-                    ),
-                  ],
-                  onApply: (environment) async {
-                    await _switchEnvironment(environment);
-                  },
-                ),
+            'settings': (context, actions) =>
+                DebugHubSettingsPage(actions: actions, plugin: _settingsPlugin),
           },
           child: Scaffold(
             appBar: AppBar(title: const Text('Nerve Example')),
