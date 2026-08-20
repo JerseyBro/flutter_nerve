@@ -265,9 +265,7 @@ void main() {
     expect(find.text('Runtime'), findsOneWidget);
     expect(find.text('Network'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('debug-setting-env')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Production').last);
+    await tester.tap(find.text('Production'));
     await tester.pumpAndSettle();
 
     await tester.tap(

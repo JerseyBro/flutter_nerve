@@ -306,20 +306,10 @@ class _SettingControl extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (setting.type) {
       case DebugSettingType.select:
-        return DropdownButtonFormField<Object?>(
+        return _InlineSelectControl(
           key: ValueKey('debug-setting-${setting.id}'),
-          initialValue: value,
-          dropdownColor: const Color(0xFF1D2030),
-          iconEnabledColor: Colors.white70,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _inputDecoration(),
-          items: [
-            for (final option in setting.options)
-              DropdownMenuItem<Object?>(
-                value: option.value,
-                child: Text(option.label),
-              ),
-          ],
+          options: setting.options,
+          value: value,
           onChanged: onChanged,
         );
       case DebugSettingType.boolean:
@@ -360,6 +350,82 @@ class _SettingControl extends StatelessWidget {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: Color(0xFFFFC400)),
+      ),
+    );
+  }
+}
+
+class _InlineSelectControl extends StatelessWidget {
+  const _InlineSelectControl({
+    super.key,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final List<DebugSettingOption> options;
+  final Object? value;
+  final ValueChanged<Object?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final option in options)
+          _SelectOptionButton(
+            option: option,
+            selected: option.value == value,
+            onTap: () => onChanged(option.value),
+          ),
+      ],
+    );
+  }
+}
+
+class _SelectOptionButton extends StatelessWidget {
+  const _SelectOptionButton({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DebugSettingOption option;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = selected
+        ? const Color(0xFFFFC400)
+        : const Color(0xFF343A46);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? const Color(0xFF2A2614) : const Color(0xFF10131A),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: borderColor),
+            ),
+            child: Text(
+              option.label,
+              style: TextStyle(
+                color: selected ? const Color(0xFFFFC400) : Colors.white,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
