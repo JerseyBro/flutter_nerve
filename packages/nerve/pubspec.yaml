@@ -14,6 +14,8 @@ dependencies:
     path: ../nerve_flutter
   nerve_network_ninja:
     path: ../nerve_network_ninja
+  nerve_wen_adapter:
+    path: ../nerve_wen_adapter
 
 dev_dependencies:
   lints: ^6.0.0
