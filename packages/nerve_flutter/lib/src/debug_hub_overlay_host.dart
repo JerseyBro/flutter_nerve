@@ -29,6 +29,7 @@ class DebugHubOverlayHost extends StatefulWidget {
     required this.child,
     this.pluginPages = const {},
     this.launchPluginId,
+    this.accentColor = const Color(0xFFFFC400),
     super.key,
   });
 
@@ -37,6 +38,7 @@ class DebugHubOverlayHost extends StatefulWidget {
   final Widget child;
   final Map<String, DebugHubPluginPageBuilder> pluginPages;
   final String? launchPluginId;
+  final Color accentColor;
 
   @override
   State<DebugHubOverlayHost> createState() => _DebugHubOverlayHostState();
@@ -92,6 +94,7 @@ class _DebugHubOverlayHostState extends State<DebugHubOverlayHost> {
               onPanEnd: _handleLauncherPanEnd,
               onPanCancel: _resetLauncherDragState,
               onTap: _openPanel,
+              accentColor: widget.accentColor,
             ),
           ),
         if (widget.enabled && _panelVisible)
@@ -201,6 +204,7 @@ class _NerveLauncher extends StatelessWidget {
     required this.onPanEnd,
     required this.onPanCancel,
     required this.onTap,
+    required this.accentColor,
     super.key,
   });
 
@@ -209,6 +213,7 @@ class _NerveLauncher extends StatelessWidget {
   final void Function(DragEndDetails details) onPanEnd;
   final VoidCallback onPanCancel;
   final VoidCallback onTap;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -224,12 +229,16 @@ class _NerveLauncher extends StatelessWidget {
         onPanEnd: onPanEnd,
         onPanCancel: onPanCancel,
         child: Material(
-          color: const Color(0xFF16181D),
+          color: accentColor,
           shape: const CircleBorder(),
           elevation: 6,
-          child: const SizedBox.square(
+          child: SizedBox.square(
             dimension: _DebugHubOverlayHostState._kLauncherSize,
-            child: Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+            child: Icon(
+              Icons.bolt_rounded,
+              color: Colors.black87,
+              size: 20,
+            ),
           ),
         ),
       ),
