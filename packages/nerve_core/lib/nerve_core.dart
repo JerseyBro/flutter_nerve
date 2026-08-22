@@ -5,6 +5,7 @@ export 'src/debug_settings.dart';
 export 'src/debug_log.dart';
 export 'src/debug_log_collector.dart';
 export 'src/plugins/log_debug_plugin.dart';
+export 'src/plugins/storage_debug_plugin.dart';
 export 'src/plugins/connectivity_debug_plugin.dart';
 export 'src/plugins/environment_debug_plugin.dart';
 export 'src/plugins/flags_debug_plugin.dart';

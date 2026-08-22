@@ -27,6 +27,8 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
   late final DebugLogStore _logStore;
   late final DebugLogCollector _logCollector;
   late final LogDebugPlugin _logPlugin;
+  late final StorageDebugPlugin _storagePlugin;
+  final Map<String, Object?> _demoStorage = {'demo_key': 'demo_value', 'token': 'secret_should_be_redacted'};
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
       }
     };
     _logPlugin = LogDebugPlugin(_logStore);
+    _storagePlugin = StorageDebugPlugin(snapshot: () => Map<String, Object?>.from(_demoStorage), redactor: DebugHubRedactor());
     final networkAdapter = NerveNetworkNinjaAdapter()..attachTo(_dio);
     _settingsPlugin = DebugSettingsPlugin(
       settings: _buildSettings,
@@ -54,7 +57,8 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
       ..registerPlugin(_buildEnvironmentPlugin())
       ..registerPlugin(_settingsPlugin)
       ..registerPlugin(FlagsDebugPlugin(_buildFlags()))
-      ..registerPlugin(_logPlugin);
+      ..registerPlugin(_logPlugin)
+      ..registerPlugin(_storagePlugin);
     // 示例日志，便于验证日志页
     _logCollector.info('Nerve example started', category: 'lifecycle');
   }
@@ -156,6 +160,11 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
             'logs': (context, actions) => DebugHubLogsPage(
                   actions: actions,
                   store: _logStore,
+                  redactor: _controller.redactor,
+                ),
+            'storage': (context, actions) => DebugHubStoragePage(
+                  actions: actions,
+                  snapshotProvider: () => _storagePlugin.snapshot,
                   redactor: _controller.redactor,
                 ),
           },
