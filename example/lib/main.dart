@@ -24,10 +24,26 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
   String _apiHost = 'https://api.dev.example.com';
   int _restartEpoch = 0;
 
+  late final DebugLogStore _logStore;
+  late final DebugLogCollector _logCollector;
+  late final LogDebugPlugin _logPlugin;
+
   @override
   void initState() {
     super.initState();
     _dio = Dio();
+    _logStore = DebugLogStore(maxEntries: 500);
+    _logCollector = DebugLogCollector(store: _logStore);
+    final prevFlutterOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      _logCollector.captureError(details.exception, details.stack, category: 'flutter');
+      if (prevFlutterOnError != null) {
+        prevFlutterOnError(details);
+      } else {
+        FlutterError.presentError(details);
+      }
+    };
+    _logPlugin = LogDebugPlugin(_logStore);
     final networkAdapter = NerveNetworkNinjaAdapter()..attachTo(_dio);
     _settingsPlugin = DebugSettingsPlugin(
       settings: _buildSettings,
@@ -37,7 +53,10 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
       ..registerPlugin(networkAdapter.plugin)
       ..registerPlugin(_buildEnvironmentPlugin())
       ..registerPlugin(_settingsPlugin)
-      ..registerPlugin(FlagsDebugPlugin(_buildFlags()));
+      ..registerPlugin(FlagsDebugPlugin(_buildFlags()))
+      ..registerPlugin(_logPlugin);
+    // 示例日志，便于验证日志页
+    _logCollector.info('Nerve example started', category: 'lifecycle');
   }
 
   EnvironmentDebugPlugin _buildEnvironmentPlugin() {
@@ -134,16 +153,43 @@ class _NerveExampleAppState extends State<NerveExampleApp> {
                 NerveNetworkLogsPage(actions: actions),
             'settings': (context, actions) =>
                 DebugHubSettingsPage(actions: actions, plugin: _settingsPlugin),
+            'logs': (context, actions) => DebugHubLogsPage(
+                  actions: actions,
+                  store: _logStore,
+                  redactor: _controller.redactor,
+                ),
           },
           child: Scaffold(
             appBar: AppBar(title: const Text('Nerve Example')),
             body: Center(
-              child: FilledButton.icon(
-                icon: const Icon(Icons.http_rounded),
-                label: const Text('Send sample request'),
-                onPressed: () {
-                  _dio.get('https://example.com');
-                },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FilledButton.icon(
+                    icon: const Icon(Icons.http_rounded),
+                    label: const Text('Send sample request'),
+                    onPressed: () {
+                      _dio.get('https://example.com');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.bug_report_rounded),
+                    label: const Text('Add sample log'),
+                    onPressed: () {
+                      _logCollector.info('Sample log at ${DateTime.now()}', category: 'demo');
+                      _logCollector.warning('Sample warning', category: 'demo');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.error_outline_rounded),
+                    label: const Text('Log error'),
+                    onPressed: () {
+                      _logCollector.error('Sample error with Bearer eyJxxx', category: 'demo', err: Exception('Auth failed'));
+                    },
+                  ),
+                ],
               ),
             ),
           ),
