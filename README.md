@@ -92,6 +92,10 @@ MaterialApp(
 through the public `network_ninja` API and does not import third-party
 `src/screens` or `src/widgets`.
 
+> Note: the Network entry only appears if you depend on
+> `nerve_network_ninja`, register `NerveNetworkNinjaAdapter().plugin`, and add
+> the `'network'` page — `nerve_core` + `nerve_flutter` alone won't show it.
+
 ## Development
 
 ```bash

@@ -14,6 +14,8 @@ Nerve 是一个 Flutter App 内置调试控制台。
 - `nerve_core`：插件协议、摘要模型、诊断导出和脱敏。
 - `nerve_flutter`：Flutter 悬浮入口和调试面板 UI。
 - `nerve_network_ninja`：基于 `network_ninja` 公开 API 的采集适配和 Nerve 网络日志 UI。
+  注意：只接 `nerve_core` + `nerve_flutter` 不会有 Network 入口；要网络日志页必须再依赖
+  `nerve_network_ninja`，并注册 `NerveNetworkNinjaAdapter().plugin` + `'network'` 页面。
 - `nerve_wen_adapter`：Wen Wallet 接入示例，不作为公开包发布。
 - `example`：最小 Flutter 示例 App。
 

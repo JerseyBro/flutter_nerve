@@ -15,10 +15,12 @@ dependencies:
     path: ../nerve_core
   nerve_flutter:
     path: ../nerve_flutter
+  # Upstream has no tags; pin the verified commit SHA instead of floating `main`
+  # so every consumer resolves the exact same code (currently main HEAD).
   network_ninja:
     git:
       url: https://github.com/YangLi-dev/network_ninja.git
-      ref: main
+      ref: 935c2322d14f269626e3a42c54d4fb4564189d14
 
 dev_dependencies:
   flutter_test:
