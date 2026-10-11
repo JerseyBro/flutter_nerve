@@ -586,12 +586,18 @@ class _NerveNetworkDetailView extends StatelessWidget {
                   title: 'Response Headers',
                   child: _CodeBlock(text: _pretty(log.responseHeaders)),
                 ),
+                // 失败请求也要能看到后端响应体：以前是「error ?? responseBody」
+                // 二选一，导致 4xx/5xx 时只显示 Dio 的异常文案、把 body 丢掉。
+                // 现在 body 与 error 分成两栏，各自独立展示。
                 _DetailSection(
-                  title: log.error == null ? 'Response Body' : 'Error',
-                  child: _CodeBlock(
-                    text: _pretty(log.error ?? log.responseBody),
-                  ),
+                  title: 'Response Body',
+                  child: _CodeBlock(text: _pretty(log.responseBody)),
                 ),
+                if (log.error != null)
+                  _DetailSection(
+                    title: 'Error',
+                    child: _CodeBlock(text: _pretty(log.error)),
+                  ),
               ],
             ),
           ),
