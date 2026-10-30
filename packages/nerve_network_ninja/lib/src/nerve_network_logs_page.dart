@@ -586,17 +586,26 @@ class _NerveNetworkDetailView extends StatelessWidget {
                   title: 'Response Headers',
                   child: _CodeBlock(text: _pretty(log.responseHeaders)),
                 ),
-                // 失败请求也要能看到后端响应体：以前是「error ?? responseBody」
-                // 二选一，导致 4xx/5xx 时只显示 Dio 的异常文案、把 body 丢掉。
-                // 现在 body 与 error 分成两栏，各自独立展示。
-                _DetailSection(
-                  title: 'Response Body',
-                  child: _CodeBlock(text: _pretty(log.responseBody)),
-                ),
-                if (log.error != null)
+                if (_hasValue(log.error) && _hasValue(log.responseBody)) ...[
+                  if (_backendErrorValues != null)
+                    _DetailSection(
+                      title: 'Backend Error',
+                      child: _KeyValueBlock(values: _backendErrorValues!),
+                    ),
                   _DetailSection(
-                    title: 'Error',
+                    title: 'Backend Response',
+                    child: _CodeBlock(text: _pretty(log.responseBody)),
+                  ),
+                  _DetailSection(
+                    title: 'Transport Error',
                     child: _CodeBlock(text: _pretty(log.error)),
+                  ),
+                ] else
+                  _DetailSection(
+                    title: log.error == null ? 'Response Body' : 'Error',
+                    child: _CodeBlock(
+                      text: _pretty(log.error ?? log.responseBody),
+                    ),
                   ),
               ],
             ),
@@ -618,6 +627,33 @@ class _NerveNetworkDetailView extends StatelessWidget {
       }
     }
     return const JsonEncoder.withIndent('  ').convert(redacted);
+  }
+
+  Map<String, String>? get _backendErrorValues {
+    final redacted = _redactForDisplay(log.responseBody);
+    if (redacted is! Map) return null;
+
+    final error = redacted['error'];
+    final values = <String, String>{};
+    _addValue(values, 'HTTP Status', log.responseStatus?.toString());
+    _addValue(values, 'Request ID', redacted['requestId']?.toString());
+    if (error is Map) {
+      _addValue(values, 'Code', error['code']?.toString());
+      _addValue(values, 'Message', error['message']?.toString());
+      _addValue(values, 'Display Message', error['displayMessage']?.toString());
+      _addValue(values, 'Category', error['errorCategory']?.toString());
+      _addValue(
+        values,
+        'Direct Fallback Eligible',
+        error['directFallbackEligible']?.toString(),
+      );
+    }
+    return values.isEmpty ? null : values;
+  }
+
+  void _addValue(Map<String, String> values, String label, String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isNotEmpty && text != 'null') values[label] = text;
   }
 
   String _copyPayload(_CopyAction action) {
@@ -692,6 +728,11 @@ class _NerveNetworkDetailView extends StatelessWidget {
   void _copy(_CopyAction action) {
     Clipboard.setData(ClipboardData(text: _copyPayload(action)));
   }
+}
+
+bool _hasValue(Object? value) {
+  if (value == null) return false;
+  return value is String ? value.trim().isNotEmpty : true;
 }
 
 String _shellQuote(String value) {

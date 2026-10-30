@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -111,6 +113,104 @@ void main() {
     expect(clipboard?.text, isNot(contains('secret words')));
   });
 
+  testWidgets('shows backend response before the transport error', (
+    tester,
+  ) async {
+    NetworkLogsService.instance.addLog(
+      NetworkLog(
+        id: 'requote',
+        timestamp: DateTime(2026, 10, 30, 9, 12),
+        method: 'POST',
+        endpoint: 'https://api.example.com/swap/v1/routes/prepare',
+        responseStatus: 409,
+        responseBody: jsonEncode(<String, Object?>{
+          'success': false,
+          'requestId': 'req_test_requote',
+          'data': null,
+          'error': <String, Object?>{
+            'code': 'REQUOTE_REQUIRED',
+            'message':
+                'LI.FI refreshed minimum output is below the quoted minimum.',
+            'displayMessage': 'LI.FI latest minimum output is below the quote.',
+            'errorCategory': 'BUSINESS',
+            'directFallbackEligible': false,
+          },
+        }),
+        error:
+            '[REDACTED] 409 and RequestOptions.validateStatus was configured to throw',
+      ),
+    );
+
+    await tester.pumpWidget(_TestHost());
+    await tester.tap(find.text('POST'));
+    await tester.pumpAndSettle();
+    await _scrollDetailUntilVisible(tester, find.text('Backend Error'));
+
+    expect(find.text('Backend Error'), findsOneWidget);
+    expect(find.textContaining('REQUOTE_REQUIRED'), findsAtLeastNWidgets(1));
+    expect(
+      find.textContaining('LI.FI latest minimum output'),
+      findsAtLeastNWidgets(1),
+    );
+
+    await _scrollDetailUntilVisible(tester, find.text('Backend Response'));
+    expect(find.text('Backend Response'), findsOneWidget);
+
+    await _scrollDetailUntilVisible(tester, find.text('Transport Error'));
+    expect(find.text('Transport Error'), findsOneWidget);
+    expect(find.textContaining('validateStatus'), findsOneWidget);
+  });
+
+  testWidgets('copies both backend response and transport error', (
+    tester,
+  ) async {
+    NetworkLogsService.instance.addLog(
+      NetworkLog(
+        id: 'copy-error',
+        timestamp: DateTime(2026, 10, 30, 9, 12),
+        method: 'POST',
+        endpoint: 'https://api.example.com/swap/v1/routes/prepare',
+        responseStatus: 409,
+        responseBody: '{"error":{"code":"REQUOTE_REQUIRED"}}',
+        error: 'Dio transport error',
+      ),
+    );
+
+    await tester.pumpWidget(_TestHost());
+    await tester.tap(find.text('POST'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copy Response'));
+    await tester.pumpAndSettle();
+
+    final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
+    expect(clipboard?.text, contains('REQUOTE_REQUIRED'));
+    expect(clipboard?.text, contains('Dio transport error'));
+  });
+
+  testWidgets('keeps a successful response in the response body section', (
+    tester,
+  ) async {
+    NetworkLogsService.instance.addLog(
+      NetworkLog(
+        id: 'success',
+        timestamp: DateTime(2026, 10, 30, 9, 12),
+        method: 'GET',
+        endpoint: 'https://api.example.com/health',
+        responseStatus: 200,
+        responseBody: '{"ok":true}',
+      ),
+    );
+
+    await tester.pumpWidget(_TestHost());
+    await tester.tap(find.text('GET'));
+    await tester.pumpAndSettle();
+    await _scrollDetailUntilVisible(tester, find.text('Response Body'));
+
+    expect(find.text('Response Body'), findsOneWidget);
+    expect(find.text('Backend Response'), findsNothing);
+    expect(find.textContaining('"ok": true'), findsOneWidget);
+  });
+
   testWidgets('renders in a plain Material shell', (tester) async {
     NetworkLogsService.instance.addLog(
       NetworkLog(
@@ -126,10 +226,7 @@ void main() {
       MaterialApp(
         home: Material(
           child: NerveNetworkLogsPage(
-            actions: DebugHubPluginPageActions(
-              showHome: () {},
-              dismiss: () {},
-            ),
+            actions: DebugHubPluginPageActions(showHome: () {}, dismiss: () {}),
           ),
         ),
       ),
@@ -144,11 +241,24 @@ class _TestHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Material(
-        child: NerveNetworkLogsPage(
-          actions: DebugHubPluginPageActions(showHome: () {}, dismiss: () {}),
+      home: Scaffold(
+        body: SizedBox.expand(
+          child: NerveNetworkLogsPage(
+            actions: DebugHubPluginPageActions(showHome: () {}, dismiss: () {}),
+          ),
         ),
       ),
     );
+  }
+}
+
+Future<void> _scrollDetailUntilVisible(
+  WidgetTester tester,
+  Finder target,
+) async {
+  for (var attempt = 0; attempt < 6; attempt++) {
+    if (target.evaluate().isNotEmpty) return;
+    await tester.dragFrom(const Offset(400, 300), const Offset(0, -500));
+    await tester.pumpAndSettle();
   }
 }
